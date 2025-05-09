@@ -1,0 +1,42 @@
+services:
+  spire-server:
+    image: ghcr.io/spiffe/spire-server:1.12.0
+    command: "/opt/spire/bin/spire-server run -config /opt/spire/conf/server/server.conf"
+    volumes:
+      - ./spire/server/conf:/opt/spire/conf/server
+    ports:
+      - "8081:8081"
+      - "8080:8080"
+
+  spire-agent:
+    build:
+      context: .
+      dockerfile: dockerfile.agent
+    depends_on:
+      - spire-server
+    volumes:
+      - ./spire/agent/conf:/run/spire/conf
+    networks:
+      - spire
+
+  app-a:
+    build: ./apps/app-a
+    depends_on:
+      - spire-agent
+    environment:
+      - SPIFFE_ENDPOINT_SOCKET=/run/spire/sockets/agent.sock
+    networks:
+      - spire
+
+  app-b:
+    build: ./apps/app-b
+    depends_on:
+      - spire-agent
+    environment:
+      - SPIFFE_ENDPOINT_SOCKET=/run/spire/sockets/agent.sock
+    networks:
+      - spire
+
+networks:
+  spire:
+    driver: bridge
